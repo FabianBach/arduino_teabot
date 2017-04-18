@@ -11,12 +11,12 @@ const int LED_PIN = LED_BUILTIN;
 enum {STATE_INITIAL, STATE_LISTENING, STATE_BREWING, STATE_DRIPPING};
 int stateActive = 0;
 
-const int SERVO_INITIAL_POS = 50;
-const int SERVO_SUNK_IN_POS = 400;
-const int SERVO_DRIPPING_POS = 90;
+const float SERVO_INITIAL_POS = 0;
+const float SERVO_SUNK_IN_POS = 170;
+const float SERVO_DRIPPING_POS = 90;
 
-int servoTargetPos = 0;
-int servoActualPos = -1; // well, let´s just assume we don't know our starting position
+float servoTargetPos = SERVO_INITIAL_POS;
+float servoActualPos = -1; // well, let´s just assume we don't know our starting position
 
 void setup() {
   pinMode(BUTTON_PIN, INPUT);
@@ -33,30 +33,30 @@ void loop() {
   moveArmToTargetPos();
 }
 
-void setServoTargetPos(int newTargetPos) {
+void setServoTargetPos(float newTargetPos) {
 //  TODO: validation and stuff
   servoTargetPos = newTargetPos;
 }
 
 void moveArmToTargetPos() {
-  unsigned long throttleTime = 25;
+  unsigned long throttleTime = 15;
   static unsigned long lastTimeMoved = 0;
   unsigned long deltaTime = millis() - lastTimeMoved;
 
   if (deltaTime >= throttleTime) {
-    int deltaPos = servoTargetPos - servoActualPos;
-    int posStep = deltaPos / 25;
+    float deltaPos = servoTargetPos - servoActualPos;
+    int posStep = deltaPos > 0 ? 1 : -1;
     moveArmByDeg(posStep);
     lastTimeMoved = millis();
   }
 }
 
-void moveArmByDeg(int degree){
-    int newPos = servoActualPos + degree;
+void moveArmByDeg(float degree){
+    float newPos = servoActualPos + degree;
     moveArmInPosition(newPos);
 }
 
-void moveArmInPosition(int newPos) {  
+void moveArmInPosition(float newPos) {  
   if (newPos < SERVO_INITIAL_POS){
     newPos = SERVO_INITIAL_POS;
   }
