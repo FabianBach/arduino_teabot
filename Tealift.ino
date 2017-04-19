@@ -10,6 +10,9 @@
 enum {STATE_INITIAL, STATE_LISTENING, STATE_BREWING, STATE_DRIPPING};
 int stateActive = 0;
 
+//BUTTON GLOBALS
+#define BUTTON_LONG_PRESS_TIME 800
+
 //SERVO GLOBALS
 #define SERVO_INITIAL_POS 0.0   //equals min value
 #define SERVO_SUNK_IN_POS 170.0 //equals max value
@@ -23,7 +26,6 @@ float servoActualPos = -1; // well, let´s just assume we don't know our startin
 #define PIXEL_FPS  60
 #define PIXEL_NUM 7
 CRGB leds[PIXEL_NUM]; //number of leds inside
-uint8_t gHue = 0; // rotating "base color" used by many of the patterns
 
 void setup() {
 //  BUTTON
@@ -39,7 +41,7 @@ void setup() {
   pinMode(PIXEL_PIN, OUTPUT);
   digitalWrite(PIXEL_PIN, LOW);
   FastLED.addLeds<WS2812,PIXEL_PIN,GRB>(leds, PIXEL_NUM).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(255);
+  FastLED.setBrightness(127);
 }
 
 void loop() {
@@ -82,23 +84,52 @@ void moveArmInPosition(float newPos) {
 void checkButton(){
   static int lastButtonState = LOW;
   static unsigned long lastTimeButtonChanged = 0;
-  static unsigned long debounceTime = 100;
+  static unsigned long debounceTime = 25;
+  
   int buttonState = digitalRead(BUTTON_PIN);
+  static bool waitForRelease = false;
+  static bool buttonLongPress = false;
 
   // Debouncing to filter mechanical flickers
   if (buttonState != lastButtonState) {
     lastTimeButtonChanged = millis();
   }
+  
   else if ((lastTimeButtonChanged + debounceTime) < millis()) {
+    digitalWrite(LED_PIN, buttonState);
+
+    // The button is pressed
     if (buttonState == HIGH) {
-      digitalWrite(LED_PIN, HIGH);
-      setServoTargetPos(SERVO_SUNK_IN_POS);
+      // if we have no long press, wait for release, else ignore the high state
+      waitForRelease = !buttonLongPress;
+      
+      if ( ((lastTimeButtonChanged + BUTTON_LONG_PRESS_TIME) < millis()) && !buttonLongPress){
+        waitForRelease = false;
+        buttonLongPress = true;
+        onButtonPressLong();
+      }
+
+    // The button is released
     } else {
-      digitalWrite(LED_PIN, LOW);
-      setServoTargetPos(SERVO_INITIAL_POS);
+      buttonLongPress = false;
+      if (waitForRelease){
+        waitForRelease = false;
+        onButtonPressShort();
+      }
     }
   }
+    
   lastButtonState = buttonState;
+}
+
+void onButtonPressShort(){
+  stateActive = STATE_BREWING;
+  setServoTargetPos(SERVO_SUNK_IN_POS);
+}
+
+void onButtonPressLong(){
+  stateActive = STATE_INITIAL;
+  setServoTargetPos(SERVO_INITIAL_POS);
 }
 
 
@@ -109,9 +140,19 @@ void checkTimer() {
   
 }
 void displayInformation() {
-  // read stateActive to display information
+  static uint8_t gHue = 0; // rotating "base color" used by many of the patterns
+//  gHue++;
 
-  gHue++;
+  switch(stateActive){
+    case STATE_INITIAL:
+      gHue = 0;
+      break;
+    
+    case STATE_BREWING:
+      gHue = 31;
+      break;
+  }
+  
   // FastLED's built-in rainbow generator
   fill_rainbow(leds, PIXEL_NUM, gHue, 7);
 
