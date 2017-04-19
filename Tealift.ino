@@ -55,16 +55,9 @@ void setServoTargetPos(float newTargetPos) {
 }
 
 void moveArmToTargetPos() {
-  unsigned long throttleTime = SERVO_SPEED;
-  static unsigned long lastTimeMoved = 0;
-  unsigned long deltaTime = millis() - lastTimeMoved;
-
-  if (deltaTime >= throttleTime) {
     float deltaPos = servoTargetPos - servoActualPos;
     int posStep = deltaPos > 0 ? 1 : -1;
     moveArmByDeg(posStep);
-    lastTimeMoved = millis();
-  }
 }
 
 void moveArmByDeg(float degree){
