@@ -2,35 +2,51 @@
 #include <FastLED.h>
 #include <Servo.h>
 
-Servo myservo;
-
-const int BUTTON_PIN = 7;
-const int SERVO_PIN = 5;
-const int LED_PIN = LED_BUILTIN;
+#define BUTTON_PIN 7
+#define SERVO_PIN 5
+#define PIXEL_PIN 9
+#define LED_PIN LED_BUILTIN
 
 enum {STATE_INITIAL, STATE_LISTENING, STATE_BREWING, STATE_DRIPPING};
 int stateActive = 0;
 
-const float SERVO_INITIAL_POS = 0;
-const float SERVO_SUNK_IN_POS = 170;
-const float SERVO_DRIPPING_POS = 90;
-
+//SERVO GLOBALS
+#define SERVO_INITIAL_POS 0.0   //equals min value
+#define SERVO_SUNK_IN_POS 170.0 //equals max value
+#define SERVO_DRIPPING_POS 90.0
+#define SERVO_SPEED 10
+Servo myservo;
 float servoTargetPos = SERVO_INITIAL_POS;
 float servoActualPos = -1; // well, let´s just assume we don't know our starting position
 
+//PIXEL GLOBALS
+#define PIXEL_FPS  60
+#define PIXEL_NUM 7
+CRGB leds[PIXEL_NUM]; //number of leds inside
+uint8_t gHue = 0; // rotating "base color" used by many of the patterns
+
 void setup() {
+//  BUTTON
   pinMode(BUTTON_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
+
+//  SERVO
   myservo.attach(SERVO_PIN);
   setServoTargetPos(SERVO_INITIAL_POS);
+
+//  PIXEL
+  pinMode(PIXEL_PIN, OUTPUT);
+  digitalWrite(PIXEL_PIN, LOW);
+  FastLED.addLeds<WS2812,PIXEL_PIN,GRB>(leds, PIXEL_NUM).setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(255);
 }
 
 void loop() {
   checkButton();
   checkTimer();
-  displayInformation();
-  moveArmToTargetPos();
+  EVERY_N_MILLISECONDS( PIXEL_FPS ) { displayInformation(); }
+  EVERY_N_MILLISECONDS( SERVO_SPEED ) { moveArmToTargetPos(); }
 }
 
 void setServoTargetPos(float newTargetPos) {
@@ -39,7 +55,7 @@ void setServoTargetPos(float newTargetPos) {
 }
 
 void moveArmToTargetPos() {
-  unsigned long throttleTime = 15;
+  unsigned long throttleTime = SERVO_SPEED;
   static unsigned long lastTimeMoved = 0;
   unsigned long deltaTime = millis() - lastTimeMoved;
 
@@ -73,7 +89,7 @@ void moveArmInPosition(float newPos) {
 void checkButton(){
   static int lastButtonState = LOW;
   static unsigned long lastTimeButtonChanged = 0;
-  static unsigned long debounceTime = 50;
+  static unsigned long debounceTime = 100;
   int buttonState = digitalRead(BUTTON_PIN);
 
   // Debouncing to filter mechanical flickers
@@ -100,6 +116,13 @@ void checkTimer() {
   
 }
 void displayInformation() {
-  // use stateActive to display information
+  // read stateActive to display information
+
+  gHue++;
+  // FastLED's built-in rainbow generator
+  fill_rainbow(leds, PIXEL_NUM, gHue, 7);
+
+  // send the 'leds' array out to the actual LED strip
+  FastLED.show();
 }
 
