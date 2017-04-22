@@ -36,6 +36,9 @@ float servoActualPos = -1; // well, let´s just assume we don't know our startin
 //PIXEL GLOBALS
 #define PIXEL_FPS  60
 #define PIXEL_NUM 7
+#define PIXEL_H_STD 30
+#define PIXEL_S_STD 255
+#define PIXEL_B_STD 127
 CRGB leds[PIXEL_NUM];
 
 void setup() {
@@ -305,10 +308,10 @@ void displayInformation() {
 
 
 void pixelAnimationBlackout(bool instant){
-  fadeToBlackBy(leds, PIXEL_NUM, 10);
+  fadeToBlackBy(leds, PIXEL_NUM, PIXEL_FPS);
   if (instant){
     for( int i = 0; i < PIXEL_NUM; i++) {
-      leds[i] = CHSV(0, 0, 0);
+      leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, 0);
     }
   }
 }
@@ -318,7 +321,7 @@ void pixelAnimationFlash(){
   fadeToBlackBy(leds, PIXEL_NUM, PIXEL_FPS);
   if (frameNum%PIXEL_FPS == 0){
     for( int i = 0; i < PIXEL_NUM; i++) {
-      leds[i] = CHSV(0, 0, 255);
+      leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, PIXEL_B_STD);
     }
   }
   frameNum++;
@@ -332,11 +335,11 @@ void pixelAnimationPulse(){
   
   uint8_t brightness = (frameNum/splitFrame) * 255;
   if (frameNum > splitFrame){
-    brightness = (1 - ((frameNum-splitFrame)/(totalFrameCount-splitFrame))) * 255;
+    brightness = (1 - ((frameNum-splitFrame)/(totalFrameCount-splitFrame))) * PIXEL_B_STD;
   }
   
   for( int i = 0; i < PIXEL_NUM; i++) {
-    leds[i] = CHSV(0, 0, brightness);
+    leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
   }
   frameNum = (frameNum % totalFrameCount)+ 1;
 }
@@ -345,11 +348,11 @@ void pixelAnimationShowTime(){
   uint8_t brightness = 0;
   for( int i = 0; i < PIXEL_NUM; i++) {
     if (i < (teaTime/ONE_MINUTE) ){
-      brightness = 255;
+      brightness = PIXEL_B_STD;
     } else {
       brightness = 0;
     }
-    leds[i] = CHSV(0, 0, brightness);
+    leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
   }
 }
 
@@ -362,11 +365,11 @@ void pixelAnimationBrewing(){
   if (frameNum % PIXEL_FPS == 0) {
     for (int i = 0; i < PIXEL_NUM; i++) {
       if (i < (teaTimeLeftMinutes) ){
-        brightness = 255;
+        brightness = PIXEL_B_STD;
       } else {
         brightness = 0;
       }
-      leds[(i+frameNum)%PIXEL_NUM] = CHSV(0, 0, brightness);
+      leds[(i+frameNum)%PIXEL_NUM] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
     }
   }
 
@@ -379,18 +382,18 @@ void pixelAnimationWarning(){
   static int stepNum = 0;
 
   if (frameNum % (PIXEL_FPS/10) == 0) {
-    leds[0] = CHSV(0, 0, 255);
+    leds[0] = CHSV(PIXEL_H_STD, PIXEL_S_STD, PIXEL_B_STD);
 
     for (int i = 0; i < PIXEL_NUM-1; i++) {
       
       if ( (i+stepNum)%3 == 0){
-        brightness = 255;
+        brightness = PIXEL_B_STD;
       }
       else {
         brightness = 0;
       }
       
-      leds[i+1] = CHSV(0, 0, brightness);
+      leds[i+1] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
     }
     stepNum++;
   }
