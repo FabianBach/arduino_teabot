@@ -39,8 +39,6 @@ float servoActualPos = -1; // well, let´s just assume we don't know our startin
 CRGB leds[PIXEL_NUM];
 
 void setup() {
-//  TIMER
-  resetTimer();
   
 //  BUTTON
   pinMode(BUTTON_PIN, INPUT);
@@ -56,13 +54,16 @@ void setup() {
   digitalWrite(PIXEL_PIN, LOW);
   FastLED.addLeds<WS2812,PIXEL_PIN,GRB>(leds, PIXEL_NUM).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(127);
+
+  //STATE
+  setStateInitial();
 }
 
 void loop() {
   checkButton();
   checkTeaTimer();
   EVERY_N_MILLISECONDS( SERVO_SPEED ) { moveArmToTargetPos(); }
-  EVERY_N_MILLISECONDS( PIXEL_FPS )   { displayInformation(); }
+  EVERY_N_MILLISECONDS( 1000/PIXEL_FPS )   { displayInformation(); }
 }
 
 
@@ -73,13 +74,13 @@ void loop() {
 void setStateInitial(){
   stateActive = STATE_INITIAL;
   setServoTargetPos(SERVO_INITIAL_POS);
+  resetTimer();
 }
 
 void setStateSetting(){
   stateActive = STATE_SETTING;
-  resetTimer();
-  setTeaTimer();
   setServoTargetPos(SERVO_INITIAL_POS);
+  setTeaTime();
 }
 
 void setStateBrewing(){
@@ -91,17 +92,18 @@ void setStateBrewing(){
 void setStateDripping(){
   stateActive = STATE_DRIPPING;
   setServoTargetPos(SERVO_DRIPPING_POS);
+  resetTimer();
 }
 
 void onButtonPressShort(){
   switch(stateActive){
   
     case STATE_INITIAL:
-      // nothing
+      setStateSetting();
       break;
 
     case STATE_SETTING:
-      setTeaTimer();
+      setTeaTime();
       break;
 
     case STATE_BREWING:
@@ -136,7 +138,6 @@ void onButtonPressLong(){
 }
 
 void onTimerEnd(){
-  resetTimer();
   setStateDripping();
 }
 
@@ -144,7 +145,7 @@ void onTimerEnd(){
 /*
  * TIMER
  */
-void setTeaTimer() {
+void setTeaTime() {
   teaTime += ONE_MINUTE;
   if (teaTime > (7*ONE_MINUTE)){ teaTime = ONE_MINUTE; }
 }
@@ -154,7 +155,7 @@ void activateTeaTimer(){
 }
 
 void checkTeaTimer() {
-  if (timeTimerWasSet < 0){
+  if (timeTimerWasSet <= 0){
     return;
   }
 
@@ -165,7 +166,7 @@ void checkTeaTimer() {
 }
 
 void resetTimer(){
- timeTimerWasSet = -1;
+ timeTimerWasSet = 0;
  teaTimeLeft = 0;
  teaTime = 0;
 }
@@ -281,7 +282,7 @@ void displayInformation() {
     switch(stateActive){
 
       case STATE_INITIAL:
-        pixelAnimationNoop();
+        pixelAnimationBlackout(true);
         break;
   
       case STATE_SETTING:
@@ -293,7 +294,7 @@ void displayInformation() {
         break;
   
       case STATE_DRIPPING:
-        pixelAnimationNoop();
+        pixelAnimationBlackout(false);
         break;
     }
   }
@@ -302,8 +303,42 @@ void displayInformation() {
   FastLED.show();
 }
 
-void pixelAnimationNoop(){
+
+void pixelAnimationBlackout(bool instant){
   fadeToBlackBy(leds, PIXEL_NUM, 10);
+  if (instant){
+    for( int i = 0; i < PIXEL_NUM; i++) {
+      leds[i] = CHSV(0, 0, 0);
+    }
+  }
+}
+
+void pixelAnimationFlash(){
+  static int frameNum = 0;
+  fadeToBlackBy(leds, PIXEL_NUM, PIXEL_FPS);
+  if (frameNum%PIXEL_FPS == 0){
+    for( int i = 0; i < PIXEL_NUM; i++) {
+      leds[i] = CHSV(0, 0, 255);
+    }
+  }
+  frameNum++;
+}
+
+void pixelAnimationPulse(){
+  static int frameNum = 0;
+  const int totalFrameCount = PIXEL_FPS;
+  float splitPos = 0.2;
+  float splitFrame = totalFrameCount * splitPos;
+  
+  uint8_t brightness = (frameNum/splitFrame) * 255;
+  if (frameNum > splitFrame){
+    brightness = (1 - ((frameNum-splitFrame)/(totalFrameCount-splitFrame))) * 255;
+  }
+  
+  for( int i = 0; i < PIXEL_NUM; i++) {
+    leds[i] = CHSV(0, 0, brightness);
+  }
+  frameNum = (frameNum % totalFrameCount)+ 1;
 }
 
 void pixelAnimationShowTime(){
@@ -319,26 +354,47 @@ void pixelAnimationShowTime(){
 }
 
 void pixelAnimationBrewing(){
-  // random colored speckles that blink in and fade smoothly
   unsigned long teaTimeLeftMinutes = (teaTimeLeft / ONE_MINUTE) + 1;
-  fadeToBlackBy(leds, PIXEL_NUM, teaTimeLeftMinutes);
-  int pos = random16(PIXEL_NUM);
-  leds[pos] += CHSV( 30, 0, 255);
+  static int frameNum = 0;
+  uint8_t brightness = 0;
+
+//  fadeToBlackBy(leds, PIXEL_NUM, PIXEL_FPS);
+  if (frameNum % PIXEL_FPS == 0) {
+    for (int i = 0; i < PIXEL_NUM; i++) {
+      if (i < (teaTimeLeftMinutes) ){
+        brightness = 255;
+      } else {
+        brightness = 0;
+      }
+      leds[(i+frameNum)%PIXEL_NUM] = CHSV(0, 0, brightness);
+    }
+  }
+
+  frameNum++;
 }
 
 void pixelAnimationWarning(){
   uint8_t brightness = 0;
-  uint8_t BeatsPerMinute = 120;
-  uint8_t beat = beatsin8(BeatsPerMinute, 0, 100);
-  
-  //fadeToBlackBy( leds, NUM_LEDS, 10);
-  for( int i = 0; i < PIXEL_NUM; i++) { //9948
-    if (beat > 70){
-      brightness = 255;
-    } else {
-      brightness = 0;
+  static int frameNum = 0;
+  static int stepNum = 0;
+
+  if (frameNum % (PIXEL_FPS/10) == 0) {
+    leds[0] = CHSV(0, 0, 255);
+
+    for (int i = 0; i < PIXEL_NUM-1; i++) {
+      
+      if ( (i+stepNum)%3 == 0){
+        brightness = 255;
+      }
+      else {
+        brightness = 0;
+      }
+      
+      leds[i+1] = CHSV(0, 0, brightness);
     }
-    leds[i] = CHSV(0, 0, brightness);
+    stepNum++;
   }
+  
+  frameNum++;
 }
 
