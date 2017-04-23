@@ -24,7 +24,7 @@ static unsigned long timeTimerWasSet = 0;
 //SERVO GLOBALS
 #define SERVO_INITIAL_POS   0.0
 #define SERVO_DRIPPING_POS 90.0
-#define SERVO_SUNK_IN_POS 168.0
+#define SERVO_SUNK_IN_POS 165.0
 #define SERVO_MIN_POS SERVO_INITIAL_POS
 #define SERVO_MAX_POS SERVO_SUNK_IN_POS
 #define SERVO_SPEED 10
@@ -36,10 +36,11 @@ float servoActualPos = -1; // well, let´s just assume we don't know our startin
 //PIXEL GLOBALS
 #define PIXEL_FPS  60
 #define PIXEL_NUM 7
-#define PIXEL_H_STD 30
+#define PIXEL_H_STD 20
 #define PIXEL_S_STD 255
-#define PIXEL_B_STD 127
+#define PIXEL_B_STD 255
 CRGB leds[PIXEL_NUM];
+static bool pixelIsDirty = false;
 
 void setup() {
   
@@ -285,7 +286,7 @@ void displayInformation() {
     switch(stateActive){
 
       case STATE_INITIAL:
-        pixelAnimationBlackout(true);
+        pixelAnimationNoop();
         break;
   
       case STATE_SETTING:
@@ -297,15 +298,29 @@ void displayInformation() {
         break;
   
       case STATE_DRIPPING:
-        pixelAnimationBlackout(false);
+        pixelAnimationMiniBlink();
         break;
     }
   }
 
-  // send the 'leds' array out to the actual LED strip
-  FastLED.show();
+  if (pixelIsDirty) {
+    // send the 'leds' array out to the actual LED strip
+    FastLED.show();  
+    pixelIsDirty = false;
+  }
+  
 }
 
+void pixelAnimationNoop(){
+  static int frameNum = 0;
+  if (frameNum%PIXEL_FPS == 0){
+    for( int i = 0; i < PIXEL_NUM; i++) {
+      leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, 0);
+    }
+    pixelIsDirty = true;
+  }
+  frameNum++;
+}
 
 void pixelAnimationBlackout(bool instant){
   fadeToBlackBy(leds, PIXEL_NUM, PIXEL_FPS);
@@ -314,6 +329,32 @@ void pixelAnimationBlackout(bool instant){
       leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, 0);
     }
   }
+  pixelIsDirty = true;
+}
+
+void pixelAnimationMiniBlink(){
+  static int frameNum = 0;
+  static int stepNum = 0;
+  uint8_t brightness = 0;
+  
+  if (frameNum % (PIXEL_FPS/2) == 0){
+    
+    if (stepNum % 4 == 0){
+      brightness = PIXEL_B_STD;
+    } else {
+      brightness = 0;
+    }
+    
+    leds[0] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
+    
+    for( int i = 1; i < PIXEL_NUM; i++) {
+      leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, PIXEL_B_STD);
+    }
+    
+    pixelIsDirty = true;
+    stepNum++;
+  }
+  frameNum++;
 }
 
 void pixelAnimationFlash(){
@@ -323,6 +364,7 @@ void pixelAnimationFlash(){
     for( int i = 0; i < PIXEL_NUM; i++) {
       leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, PIXEL_B_STD);
     }
+    pixelIsDirty = true;
   }
   frameNum++;
 }
@@ -332,8 +374,8 @@ void pixelAnimationPulse(){
   const int totalFrameCount = PIXEL_FPS;
   float splitPos = 0.2;
   float splitFrame = totalFrameCount * splitPos;
-  
   uint8_t brightness = (frameNum/splitFrame) * 255;
+  
   if (frameNum > splitFrame){
     brightness = (1 - ((frameNum-splitFrame)/(totalFrameCount-splitFrame))) * PIXEL_B_STD;
   }
@@ -342,18 +384,25 @@ void pixelAnimationPulse(){
     leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
   }
   frameNum = (frameNum % totalFrameCount)+ 1;
+
+  pixelIsDirty = true;
 }
 
 void pixelAnimationShowTime(){
+  static int frameNum = 0;
   uint8_t brightness = 0;
-  for( int i = 0; i < PIXEL_NUM; i++) {
-    if (i < (teaTime/ONE_MINUTE) ){
-      brightness = PIXEL_B_STD;
-    } else {
-      brightness = 0;
+  if (frameNum % (PIXEL_FPS/10) == 0){
+    for( int i = 0; i < PIXEL_NUM; i++) {
+      if (i < (teaTime/ONE_MINUTE) ){
+        brightness = PIXEL_B_STD;
+      } else {
+        brightness = 0;
+      }
+      leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
     }
-    leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
+    pixelIsDirty = true;
   }
+  frameNum++;
 }
 
 void pixelAnimationBrewing(){
@@ -371,6 +420,7 @@ void pixelAnimationBrewing(){
       }
       leds[(i+frameNum)%PIXEL_NUM] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
     }
+    pixelIsDirty = true;
   }
 
   frameNum++;
@@ -396,6 +446,8 @@ void pixelAnimationWarning(){
       leds[i+1] = CHSV(PIXEL_H_STD, PIXEL_S_STD, brightness);
     }
     stepNum++;
+
+    pixelIsDirty = true;
   }
   
   frameNum++;
