@@ -22,9 +22,9 @@ static unsigned long timeTimerWasSet = 0;
 #define BUTTON_LONG_PRESS_TIME 800
 
 //SERVO GLOBALS
-#define SERVO_INITIAL_POS   0.0
-#define SERVO_DRIPPING_POS 90.0
-#define SERVO_SUNK_IN_POS 165.0
+#define SERVO_INITIAL_POS  10.0
+#define SERVO_DRIPPING_POS 70.0
+#define SERVO_SUNK_IN_POS 160.0
 #define SERVO_MIN_POS SERVO_INITIAL_POS
 #define SERVO_MAX_POS SERVO_SUNK_IN_POS
 #define SERVO_SPEED 10
@@ -312,7 +312,7 @@ void displayInformation() {
 }
 
 void pixelAnimationNoop(){
-  static int frameNum = 0;
+  static unsigned long frameNum = 0;
   if (frameNum%PIXEL_FPS == 0){
     for( int i = 0; i < PIXEL_NUM; i++) {
       leds[i] = CHSV(PIXEL_H_STD, PIXEL_S_STD, 0);
@@ -333,8 +333,8 @@ void pixelAnimationBlackout(bool instant){
 }
 
 void pixelAnimationMiniBlink(){
-  static int frameNum = 0;
-  static int stepNum = 0;
+  static unsigned long frameNum = 0;
+  static unsigned long stepNum = 0;
   uint8_t brightness = 0;
   
   if (frameNum % (PIXEL_FPS/2) == 0){
@@ -358,7 +358,7 @@ void pixelAnimationMiniBlink(){
 }
 
 void pixelAnimationFlash(){
-  static int frameNum = 0;
+  static unsigned long frameNum = 0;
   fadeToBlackBy(leds, PIXEL_NUM, PIXEL_FPS);
   if (frameNum%PIXEL_FPS == 0){
     for( int i = 0; i < PIXEL_NUM; i++) {
@@ -370,7 +370,7 @@ void pixelAnimationFlash(){
 }
 
 void pixelAnimationPulse(){
-  static int frameNum = 0;
+  static unsigned long frameNum = 0;
   const int totalFrameCount = PIXEL_FPS;
   float splitPos = 0.2;
   float splitFrame = totalFrameCount * splitPos;
@@ -389,7 +389,7 @@ void pixelAnimationPulse(){
 }
 
 void pixelAnimationShowTime(){
-  static int frameNum = 0;
+  static unsigned long frameNum = 0;
   uint8_t brightness = 0;
   if (frameNum % (PIXEL_FPS/10) == 0){
     for( int i = 0; i < PIXEL_NUM; i++) {
@@ -407,10 +407,14 @@ void pixelAnimationShowTime(){
 
 void pixelAnimationBrewing(){
   unsigned long teaTimeLeftMinutes = (teaTimeLeft / ONE_MINUTE) + 1;
-  static int frameNum = 0;
+  static unsigned long frameNum = 0;
   uint8_t brightness = 0;
 
-//  fadeToBlackBy(leds, PIXEL_NUM, PIXEL_FPS);
+  if (frameNum % (int)(PIXEL_FPS/10) == 0) {
+    fadeToBlackBy(leds, PIXEL_NUM, (int)(PIXEL_B_STD/5)); //last argument tells how much to dim
+    pixelIsDirty = true;
+  }
+
   if (frameNum % PIXEL_FPS == 0) {
     for (int i = 0; i < PIXEL_NUM; i++) {
       if (i < (teaTimeLeftMinutes) ){
@@ -428,8 +432,8 @@ void pixelAnimationBrewing(){
 
 void pixelAnimationWarning(){
   uint8_t brightness = 0;
-  static int frameNum = 0;
-  static int stepNum = 0;
+  static unsigned long frameNum = 0;
+  static unsigned long stepNum = 0;
 
   if (frameNum % (PIXEL_FPS/10) == 0) {
     leds[0] = CHSV(PIXEL_H_STD, PIXEL_S_STD, PIXEL_B_STD);
