@@ -22,12 +22,12 @@ static unsigned long timeTimerWasSet = 0;
 #define BUTTON_LONG_PRESS_TIME 800
 
 //SERVO GLOBALS
-#define SERVO_INITIAL_POS  5.0
-#define SERVO_DRIPPING_POS 70.0
-#define SERVO_SUNK_IN_POS 140.0
+#define SERVO_INITIAL_POS  0.0
+#define SERVO_DRIPPING_POS 35.0
+#define SERVO_SUNK_IN_POS 95.0
 #define SERVO_MIN_POS SERVO_INITIAL_POS
 #define SERVO_MAX_POS SERVO_SUNK_IN_POS
-#define SERVO_SPEED 10
+#define SERVO_SPEED 20
 Servo myservo;
 bool servoMoving = false;
 float servoTargetPos = SERVO_INITIAL_POS;
