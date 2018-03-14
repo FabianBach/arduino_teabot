@@ -22,12 +22,15 @@ static unsigned long timeTimerWasSet = 0;
 #define BUTTON_LONG_PRESS_TIME 800
 
 //SERVO GLOBALS
+#define SERVO_MAX_SPEED 0.7
+#define SERVO_UPDATE_SPEED 10
+
 #define SERVO_INITIAL_POS  0.0
-#define SERVO_DRIPPING_POS 35.0
-#define SERVO_SUNK_IN_POS 95.0
+#define SERVO_DRIPPING_POS 20.0
+#define SERVO_SUNK_IN_POS 85.0
 #define SERVO_MIN_POS SERVO_INITIAL_POS
 #define SERVO_MAX_POS SERVO_SUNK_IN_POS
-#define SERVO_SPEED 20
+
 Servo myservo;
 bool servoMoving = false;
 float servoTargetPos = SERVO_INITIAL_POS;
@@ -66,7 +69,7 @@ void setup() {
 void loop() {
   checkButton();
   checkTeaTimer();
-  EVERY_N_MILLISECONDS( SERVO_SPEED ) { moveArmToTargetPos(); }
+  EVERY_N_MILLISECONDS( SERVO_UPDATE_SPEED ) { moveArmToTargetPos(); }
   EVERY_N_MILLISECONDS( 1000/PIXEL_FPS )   { displayInformation(); }
 }
 
@@ -247,8 +250,26 @@ void moveArmToTargetPos() {
     float posStep = 0;
     
     if (delta != 0){
-      posStep = delta > 0 ? 1 : -1;
+      posStep = delta > 0 ? SERVO_MAX_SPEED : -SERVO_MAX_SPEED;
     }
+    
+    //slow down on the sinking end
+    float sinkingZone = SERVO_SUNK_IN_POS - SERVO_DRIPPING_POS;
+    bool isProbablyTouchingWater = delta < sinkingZone;
+    if (isProbablyTouchingWater && delta > 0){
+      posStep = posStep * (delta/(sinkingZone*2));
+    }
+
+    // do not get too slow...
+    if (posStep > 0 && posStep < 0.2){
+      posStep = 0.2;
+    }
+
+    // do not get too fast either
+    if (abs(posStep) > SERVO_MAX_SPEED){
+      posStep = posStep > 0 ? SERVO_MAX_SPEED : -SERVO_MAX_SPEED;
+    }
+        
     moveArmByDeg(posStep);
 }
 
