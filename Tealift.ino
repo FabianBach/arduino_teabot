@@ -23,6 +23,7 @@ static unsigned long timeTimerWasSet = 0;
 
 //SERVO GLOBALS
 #define SERVO_MAX_SPEED 0.7
+#define SERVO_MIN_SPEED 0.2
 #define SERVO_UPDATE_SPEED 10
 
 #define SERVO_INITIAL_POS  0.0
@@ -255,19 +256,24 @@ void moveArmToTargetPos() {
     
     //slow down on the sinking end
     float sinkingZone = SERVO_SUNK_IN_POS - SERVO_DRIPPING_POS;
-    bool isProbablyTouchingWater = delta < sinkingZone;
+    bool isProbablyTouchingWater = servoActualPos > SERVO_DRIPPING_POS;
     if (isProbablyTouchingWater && delta > 0){
       posStep = posStep * (delta/(sinkingZone*2));
     }
 
     // do not get too slow...
-    if (posStep > 0 && posStep < 0.2){
-      posStep = 0.2;
+    if (abs(posStep) > 0 && abs(posStep) < SERVO_MIN_SPEED){
+      posStep = posStep > 0 ? SERVO_MIN_SPEED : -SERVO_MIN_SPEED;;
     }
 
     // do not get too fast either
     if (abs(posStep) > SERVO_MAX_SPEED){
       posStep = posStep > 0 ? SERVO_MAX_SPEED : -SERVO_MAX_SPEED;
+    }
+
+    // do this last step in whatever speed necessary
+    if (abs(delta) < SERVO_MIN_SPEED){
+      posStep = delta;
     }
         
     moveArmByDeg(posStep);
